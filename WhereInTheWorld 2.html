@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Where in the World?</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a1628; --gold: #f0a500; --gold2: #ffd166;
+  --white: #f5f0e8; --green: #2ecc71; --red: #e74c3c;
+  --card: rgba(255,255,255,0.06); --border: rgba(240,165,0,0.28);
+}
+body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--white); min-height: 100vh; }
+#app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+
+/* SCREENS */
+.screen { display: none; }
+.screen.active { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* HOME */
+#home { align-items: center; justify-content: center; text-align: center; gap: 22px; padding: 28px; }
+.globe { font-size: 120px; animation: float 3s ease-in-out infinite; }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+h1 { font-family: Georgia, serif; font-size: 38px; font-weight: 900;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.subtitle { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: rgba(245,240,232,0.45); }
+.tagline { font-size: 14px; color: rgba(245,240,232,0.7); line-height: 1.6; max-width: 280px; }
+.btn { background: linear-gradient(135deg, var(--gold), #e09000); color: #0a1628;
+  border: none; padding: 15px 0; border-radius: 50px; font-size: 15px; font-weight: 700;
+  cursor: pointer; width: 100%; letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 10px; transition: transform .2s; }
+.btn:hover { transform: translateY(-2px); }
+.btn2 { background: transparent; color: var(--white); border: 1px solid rgba(245,240,232,0.3);
+  padding: 13px 0; border-radius: 50px; font-size: 14px; cursor: pointer;
+  width: 100%; margin-bottom: 10px; transition: all .2s; }
+.btn2:hover { border-color: var(--gold); color: var(--gold); }
+
+/* LEVEL SELECT */
+#levelselect { padding: 20px; gap: 10px; overflow-y: auto; }
+.sel-header { display: flex; align-items: center; gap: 14px; padding-top: 8px; margin-bottom: 6px; }
+.back { background: var(--card); border: 1px solid var(--border); color: var(--white);
+  width: 40px; height: 40px; border-radius: 12px; cursor: pointer; font-size: 18px; flex-shrink: 0; }
+h2 { font-family: Georgia, serif; font-size: 25px; font-weight: 700; }
+.lvl-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 13px 17px; display: flex; align-items: center; gap: 13px;
+  cursor: pointer; transition: all .2s; }
+.lvl-card:hover:not(.locked) { border-color: var(--gold); transform: translateX(4px); }
+.lvl-card.locked { opacity: .4; cursor: not-allowed; }
+.lvl-card.done { border-color: rgba(46,204,113,.4); }
+.lvl-num { width: 44px; height: 44px; border-radius: 12px; background: rgba(240,165,0,.15);
+  border: 1px solid rgba(240,165,0,.3); display: flex; align-items: center;
+  justify-content: center; font-family: Georgia, serif; font-size: 18px;
+  font-weight: 700; color: var(--gold); flex-shrink: 0; }
+.lvl-info { flex: 1; }
+.lvl-name { font-weight: 600; font-size: 14px; }
+.lvl-desc { font-size: 12px; color: rgba(245,240,232,.5); margin-top: 2px; }
+
+/* GAME */
+#game { padding: 0; }
+.game-hdr { padding: 13px 17px; display: flex; align-items: center;
+  justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.06); }
+.badge { background: linear-gradient(135deg, var(--gold), #e09000); color: #0a1628;
+  font-weight: 700; font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+  padding: 5px 11px; border-radius: 20px; }
+.pbar-wrap { height: 3px; background: rgba(255,255,255,.08); }
+.pbar { height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold2));
+  transition: width .4s; }
+.img-box { position: relative; width: 100%; background: #0d2b4e; overflow: hidden; }
+.img-box img { width: 100%; height: 280px; object-fit: cover; display: block;
+  transition: opacity .4s; }
+.img-overlay { position: absolute; inset: 0;
+  background: linear-gradient(to bottom, transparent 55%, rgba(10,22,40,.9) 100%);
+  pointer-events: none; }
+.img-label { position: absolute; bottom: 13px; left: 13px; right: 13px;
+  font-family: Georgia, serif; font-size: 16px; font-weight: 700;
+  text-shadow: 0 2px 8px rgba(0,0,0,.9); }
+.hint-tag { position: absolute; top: 10px; right: 10px;
+  background: rgba(10,22,40,.8); border: 1px solid rgba(240,165,0,.35);
+  color: var(--gold2); font-size: 10px; font-weight: 600; letter-spacing: 1px;
+  padding: 3px 9px; border-radius: 20px; text-transform: uppercase; }
+.img-placeholder { width: 100%; height: 280px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px;
+  background: linear-gradient(135deg, #0d2b4e, #1a3a5c); }
+.spin { font-size: 44px; animation: spin 2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.img-placeholder p { font-size: 12px; color: rgba(245,240,232,.5); }
+.opts { padding: 13px 17px; display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.opt { background: var(--card); border: 1px solid var(--border); color: var(--white);
+  padding: 13px 9px; border-radius: 13px; font-size: 13px; font-weight: 500;
+  cursor: pointer; text-align: center; line-height: 1.3; transition: all .2s; }
+.opt:hover:not(:disabled) { border-color: var(--gold); background: rgba(240,165,0,.1); }
+.opt.correct { background: rgba(46,204,113,.2); border-color: var(--green); color: #7fffb0; }
+.opt.wrong   { background: rgba(231,76,60,.2);  border-color: var(--red);   color: #ff9f9f; }
+.feedback { padding: 11px 17px; text-align: center; font-weight: 600; font-size: 14px;
+  min-height: 46px; display: flex; align-items: center; justify-content: center; }
+
+/* RESULT */
+#result { align-items: center; justify-content: center; text-align: center;
+  gap: 20px; padding: 28px; }
+.res-icon { font-size: 72px; animation: float 2s ease-in-out infinite; }
+.res-title { font-family: Georgia, serif; font-size: 34px; font-weight: 900; }
+.res-title.win { color: var(--gold); }
+.res-title.lose { color: rgba(245,240,232,.7); }
+.res-score { font-family: Georgia, serif; font-size: 64px; font-weight: 900;
+  color: var(--gold); line-height: 1; }
+.res-msg { font-size: 14px; color: rgba(245,240,232,.6); max-width: 260px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- HOME -->
+<div id="home" class="screen active">
+  <div class="globe">&#127757;</div>
+  <div>
+    <h1>Where in the World?</h1>
+    <div class="subtitle">Geography Challenge</div>
+  </div>
+  <div class="tagline">Test your knowledge of the world's most iconic and hidden places across 10 levels.</div>
+  <div style="width:100%">
+    <button class="btn" onclick="startLevel(0)">Start Playing</button>
+    <button class="btn2" onclick="showScreen('levelselect')">Select Level</button>
+  </div>
+</div>
+
+<!-- LEVEL SELECT -->
+<div id="levelselect" class="screen">
+  <div class="sel-header">
+    <button class="back" onclick="showScreen('home')">&#8592;</button>
+    <h2>Choose Level</h2>
+  </div>
+  <div id="lvl-list"></div>
+</div>
+
+<!-- GAME -->
+<div id="game" class="screen">
+  <div class="game-hdr">
+    <div class="badge" id="g-badge">Level 1</div>
+    <div style="font-size:13px;color:rgba(245,240,232,.6)" id="g-progress">1 / 10</div>
+    <div style="font-size:15px" id="g-lives"></div>
+  </div>
+  <div class="pbar-wrap"><div class="pbar" id="pbar" style="width:0%"></div></div>
+  <div class="img-box">
+    <div class="img-placeholder" id="img-ph">
+      <div class="spin">&#127760;</div>
+      <p>Loading image...</p>
+    </div>
+    <img id="g-img" src="" alt="" style="opacity:0">
+    <div class="img-overlay"></div>
+    <div class="img-label">&#127757; Where in the world is this?</div>
+    <div class="hint-tag" id="g-hint">World Icons</div>
+  </div>
+  <div class="opts" id="g-opts"></div>
+  <div class="feedback" id="g-fb"></div>
+</div>
+
+<!-- RESULT -->
+<div id="result" class="screen">
+  <div class="res-icon" id="r-icon">&#127942;</div>
+  <div class="res-title" id="r-title">Level Complete!</div>
+  <div class="res-score" id="r-score">10/10</div>
+  <div style="font-size:16px;color:rgba(245,240,232,.7)" id="r-sub">Perfect score!</div>
+  <div class="res-msg" id="r-msg"></div>
+  <div style="width:100%">
+    <button class="btn" id="r-primary" onclick="primaryAction()">Next Level</button>
+    <button class="btn2" onclick="showScreen('levelselect')">Level Select</button>
+    <button class="btn2" onclick="showScreen('home')">Home</button>
+  </div>
+</div>
+
+</div>
+
+<script>
+var LEVELS = [
+  { name:"Iconic Wonders", hint:"World Icons", desc:"The world's most famous landmarks", questions:[
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/8/85/Eiffel_Tower_from_Champ_de_Mars%2C_Paris%2C_8_May_2011.jpg/600px-Eiffel_Tower_from_Champ_de_Mars%2C_Paris%2C_8_May_2011.jpg",ans:"Eiffel Tower, France",opts:["Eiffel Tower, France","Tokyo Tower, Japan","CN Tower, Canada","Blackpool Tower, UK"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/9/93/Taj_Mahal_in_March_2004.jpg/600px-Taj_Mahal_in_March_2004.jpg",ans:"Taj Mahal, India",opts:["Hagia Sophia, Turkey","Taj Mahal, India","Blue Mosque, Turkey","Amber Fort, India"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/d/de/Colosseo_2020.jpg/600px-Colosseo_2020.jpg",ans:"Colosseum, Rome",opts:["Colosseum, Rome","Parthenon, Greece","El Jem, Tunisia","Arena of Nimes, France"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Machu_Picchu%2C_Peru.jpg/600px-Machu_Picchu%2C_Peru.jpg",ans:"Machu Picchu, Peru",opts:["Machu Picchu, Peru","Chichen Itza, Mexico","Tikal, Guatemala","Teotihuacan, Mexico"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/a/af/All_Gizah_Pyramids.jpg/600px-All_Gizah_Pyramids.jpg",ans:"Pyramids of Giza, Egypt",opts:["Pyramids of Giza, Egypt","Nubian Pyramids, Sudan","Step Pyramid, Egypt","Pyramid of the Sun, Mexico"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/40/Sydney_Opera_House_Sails.jpg/600px-Sydney_Opera_House_Sails.jpg",ans:"Sydney Opera House, Australia",opts:["Sydney Opera House, Australia","Opera Garnier, France","Helsinki Opera","Singapore Esplanade"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Stonehenge_Total.jpg/600px-Stonehenge_Total.jpg",ans:"Stonehenge, England",opts:["Stonehenge, England","Avebury, UK","Carnac Stones, France","Easter Island statues"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Sagrada_Familia_01.jpg/600px-Sagrada_Familia_01.jpg",ans:"Sagrada Familia, Spain",opts:["Sagrada Familia, Spain","Notre-Dame, France","Cologne Cathedral","Milan Cathedral"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/2/23/The_Great_Wall_of_China_at_Jinshanling-edit.jpg/600px-The_Great_Wall_of_China_at_Jinshanling-edit.jpg",ans:"Great Wall of China",opts:["Great Wall of China","Hadrian Wall, UK","Walls of Constantinople","Walls of Dubrovnik"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/d/df/2019-08-09_Acropolis_of_Athens_01.jpg/600px-2019-08-09_Acropolis_of_Athens_01.jpg",ans:"Acropolis, Athens",opts:["Acropolis, Athens","Colosseum, Rome","Forum Romanum","Carthage, Tunisia"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/13/Burj_Khalifa.jpg/600px-Burj_Khalifa.jpg",ans:"Burj Khalifa, Dubai",opts:["Burj Khalifa, Dubai","Freedom Tower, USA","Petronas Towers","Shanghai Tower"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/43/Statue_of_Liberty_7.jpg/600px-Statue_of_Liberty_7.jpg",ans:"Statue of Liberty, USA",opts:["Statue of Liberty, USA","Cristo Redentor, Brazil","Colossus of Rhodes","Motherland Calls"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Angkor_wat_temple.jpg/600px-Angkor_wat_temple.jpg",ans:"Angkor Wat, Cambodia",opts:["Angkor Wat, Cambodia","Borobudur, Indonesia","Bagan, Myanmar","Prambanan, Indonesia"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Petra_Jordan_BW_21.jpg/600px-Petra_Jordan_BW_21.jpg",ans:"Petra, Jordan",opts:["Petra, Jordan","Palmyra, Syria","Jerash, Jordan","Leptis Magna, Libya"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Christ_the_Redeemer_-_Cristo_Redentor.jpg/600px-Christ_the_Redeemer_-_Cristo_Redentor.jpg",ans:"Christ the Redeemer, Brazil",opts:["Christ the Redeemer, Brazil","Statue of Liberty, USA","El Angel, Mexico","Cristo Concordia"]},
+  ]},
+  { name:"Capital Cities", hint:"Capitals", desc:"Recognise these world capitals", questions:[
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/4b/La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques%2C_Paris_ao%C3%BBt_2014_%282%29.jpg/600px-La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques%2C_Paris_ao%C3%BBt_2014_%282%29.jpg",ans:"Paris, France",opts:["Paris, France","Lyon, France","Brussels, Belgium","Zurich, Switzerland"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/8/88/Palace_of_Westminster_from_the_dome_on_Methodist_Central_Hall.jpg/600px-Palace_of_Westminster_from_the_dome_on_Methodist_Central_Hall.jpg",ans:"London, UK",opts:["London, UK","Dublin, Ireland","Edinburgh, Scotland","Amsterdam, Netherlands"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Kremlin_27.06.2008.jpg/600px-Kremlin_27.06.2008.jpg",ans:"Moscow, Russia",opts:["Moscow, Russia","Warsaw, Poland","Prague, Czech Republic","Budapest, Hungary"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/16/Forbidden_City_from_the_Hill_of_Prospect.jpg/600px-Forbidden_City_from_the_Hill_of_Prospect.jpg",ans:"Beijing, China",opts:["Beijing, China","Shanghai, China","Nanjing, China","Xian, China"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Berlin_-_Brandenburger_Tor.jpg/600px-Berlin_-_Brandenburger_Tor.jpg",ans:"Berlin, Germany",opts:["Berlin, Germany","Vienna, Austria","Warsaw, Poland","Prague, Czech Republic"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/7/73/Tokyo_skyscrapers_1.jpg/600px-Tokyo_skyscrapers_1.jpg",ans:"Tokyo, Japan",opts:["Tokyo, Japan","Seoul, South Korea","Shanghai, China","Osaka, Japan"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Kl-kl-tower-and-petronas-tower.jpg/600px-Kl-kl-tower-and-petronas-tower.jpg",ans:"Kuala Lumpur, Malaysia",opts:["Kuala Lumpur, Malaysia","Singapore","Bangkok, Thailand","Jakarta, Indonesia"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Amsterdam_Centraal.jpg/600px-Amsterdam_Centraal.jpg",ans:"Amsterdam, Netherlands",opts:["Amsterdam, Netherlands","Bruges, Belgium","Copenhagen, Denmark","Stockholm, Sweden"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/3/30/GoldenHornBridge.jpg/600px-GoldenHornBridge.jpg",ans:"Istanbul, Turkey",opts:["Istanbul, Turkey","Athens, Greece","Beirut, Lebanon","Tehran, Iran"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/f/fd/Marina_Bay_Sands_in_Singapore_-_20101120.jpg/600px-Marina_Bay_Sands_in_Singapore_-_20101120.jpg",ans:"Singapore",opts:["Singapore","Hong Kong, China","Kuala Lumpur, Malaysia","Bangkok, Thailand"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/9/98/Tett%C5%91_l%C3%A1tv%C3%A1nya_Budapest.jpg/600px-Tett%C5%91_l%C3%A1tv%C3%A1nya_Budapest.jpg",ans:"Budapest, Hungary",opts:["Budapest, Hungary","Vienna, Austria","Prague, Czech Republic","Bratislava, Slovakia"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/5/52/Roman_Forum_and_Colosseum%2C_Rome%2C_Italy.jpg/600px-Roman_Forum_and_Colosseum%2C_Rome%2C_Italy.jpg",ans:"Rome, Italy",opts:["Rome, Italy","Athens, Greece","Istanbul, Turkey","Madrid, Spain"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Sydney_from_the_air_2015_%28edit%29.jpg/600px-Sydney_from_the_air_2015_%28edit%29.jpg",ans:"Sydney, Australia",opts:["Sydney, Australia","Melbourne, Australia","Auckland, New Zealand","Cape Town, South Africa"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/0/05/Southwest_corner_of_Central_Park%2C_looking_east%2C_NYC.jpg/600px-Southwest_corner_of_Central_Park%2C_looking_east%2C_NYC.jpg",ans:"New York City, USA",opts:["New York City, USA","Chicago, USA","Toronto, Canada","Los Angeles, USA"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Christ_the_Redeemer_-_Cristo_Redentor.jpg/600px-Christ_the_Redeemer_-_Cristo_Redentor.jpg",ans:"Rio de Janeiro, Brazil",opts:["Rio de Janeiro, Brazil","Sao Paulo, Brazil","Buenos Aires, Argentina","Lima, Peru"]},
+  ]},
+  { name:"Natural Wonders", hint:"Nature", desc:"Earth's spectacular landscapes", questions:[
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Grand_Canyon_viewed_from_Pima_Point_2010.jpg/600px-Grand_Canyon_viewed_from_Pima_Point_2010.jpg",ans:"Grand Canyon, USA",opts:["Grand Canyon, USA","Fish River Canyon, Namibia","Bryce Canyon, USA","Colca Canyon, Peru"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Niagara_Falls%2C_viewed_from_Prospect_Point_in_2010.jpg/600px-Niagara_Falls%2C_viewed_from_Prospect_Point_in_2010.jpg",ans:"Niagara Falls",opts:["Niagara Falls","Victoria Falls, Africa","Angel Falls, Venezuela","Iguazu Falls"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Victoria_Falls_-_view_from_the_Zambian_side.jpg/600px-Victoria_Falls_-_view_from_the_Zambian_side.jpg",ans:"Victoria Falls",opts:["Victoria Falls","Niagara Falls","Angel Falls, Venezuela","Iguazu Falls"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Aurora_over_Abisko_National_Park.jpg/600px-Aurora_over_Abisko_National_Park.jpg",ans:"Northern Lights, Sweden",opts:["Northern Lights, Sweden","Lightning Storm, Bolivia","Bioluminescence, Maldives","Milky Way, New Zealand"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/5/53/Mount_Fuji_from_Hotel_Mt_Fuji_9.jpg/600px-Mount_Fuji_from_Hotel_Mt_Fuji_9.jpg",ans:"Mount Fuji, Japan",opts:["Mount Fuji, Japan","Mount Rainier, USA","Mount Etna, Italy","Vesuvius, Italy"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Uluru_Australia_%28Bing%29_%282%29.jpg/600px-Uluru_Australia_%28Bing%29_%282%29.jpg",ans:"Uluru, Australia",opts:["Uluru, Australia","Wave Rock, Australia","Monument Valley, USA","Red Rock Canyon, USA"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/a/af/Halong_Bay.jpg/600px-Halong_Bay.jpg",ans:"Ha Long Bay, Vietnam",opts:["Ha Long Bay, Vietnam","Phang Nga Bay, Thailand","Palawan, Philippines","Li River, China"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Antelope_Canyon_mirror_1.jpg/600px-Antelope_Canyon_mirror_1.jpg",ans:"Antelope Canyon, USA",opts:["Antelope Canyon, USA","Bryce Canyon, USA","Painted Desert, USA","Cappadocia, Turkey"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Angel_falls.jpg/600px-Angel_falls.jpg",ans:"Angel Falls, Venezuela",opts:["Angel Falls, Venezuela","Victoria Falls","Iguazu Falls","Niagara Falls"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Iguacu_argentina.jpg/600px-Iguacu_argentina.jpg",ans:"Iguazu Falls, Argentina",opts:["Iguazu Falls, Argentina","Victoria Falls","Angel Falls, Venezuela","Niagara Falls"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/15/Peyto_Lake-Banff_NP-Canada.jpg/600px-Peyto_Lake-Banff_NP-Canada.jpg",ans:"Banff, Canada",opts:["Banff, Canada","Yosemite, USA","Fiordland, NZ","Patagonia, Chile"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Mount_Everest_as_seen_from_Drukair2_PLW_edit.jpg/600px-Mount_Everest_as_seen_from_Drukair2_PLW_edit.jpg",ans:"Mount Everest, Nepal",opts:["Mount Everest, Nepal","K2, Pakistan","Kangchenjunga, India","Mont Blanc, France"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/7/76/Sossusvlei_panorama.jpg/600px-Sossusvlei_panorama.jpg",ans:"Namib Desert, Namibia",opts:["Namib Desert, Namibia","Sahara Desert","Arabian Desert, UAE","Simpson Desert"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Salar_de_Uyuni%2C_Bolivia.jpg/600px-Salar_de_Uyuni%2C_Bolivia.jpg",ans:"Salar de Uyuni, Bolivia",opts:["Salar de Uyuni, Bolivia","Atacama Desert, Chile","White Sands, USA","Bonneville Salt Flats"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Zhangjiajie-_Yuanjiajie_Scenic_Area_%28cropped%29.jpg/600px-Zhangjiajie-_Yuanjiajie_Scenic_Area_%28cropped%29.jpg",ans:"Zhangjiajie, China",opts:["Zhangjiajie, China","Guilin, China","Ha Long Bay, Vietnam","Li River, China"]},
+  ]},
+  { name:"European Gems", hint:"Europe", desc:"Beautiful cities across Europe", questions:[
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Santorini-2009-oia.jpg/600px-Santorini-2009-oia.jpg",ans:"Santorini, Greece",opts:["Santorini, Greece","Positano, Italy","Dubrovnik, Croatia","Valletta, Malta"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Dubrovnik_Pano.jpg/600px-Dubrovnik_Pano.jpg",ans:"Dubrovnik, Croatia",opts:["Dubrovnik, Croatia","Split, Croatia","Kotor, Montenegro","Valletta, Malta"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/d/da/Neuschwanstein_castle_at_sunset.jpg/600px-Neuschwanstein_castle_at_sunset.jpg",ans:"Neuschwanstein Castle, Germany",opts:["Neuschwanstein Castle, Germany","Bran Castle, Romania","Windsor Castle, UK","Chambord, France"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Amalfi_town.jpg/600px-Amalfi_town.jpg",ans:"Amalfi Coast, Italy",opts:["Amalfi Coast, Italy","French Riviera, France","Costa Brava, Spain","Cinque Terre, Italy"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Edinburgh_Castle_esplanade_restored.jpg/600px-Edinburgh_Castle_esplanade_restored.jpg",ans:"Edinburgh, Scotland",opts:["Edinburgh, Scotland","Dublin, Ireland","Stirling, Scotland","Cardiff, Wales"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Hallstatt_300.jpg/600px-Hallstatt_300.jpg",ans:"Hallstatt, Austria",opts:["Hallstatt, Austria","Interlaken, Switzerland","Berchtesgaden, Germany","Bled, Slovenia"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/5/52/Vernazza%2C_Cinque_Terre.jpg/600px-Vernazza%2C_Cinque_Terre.jpg",ans:"Cinque Terre, Italy",opts:["Cinque Terre, Italy","Positano, Italy","Amalfi, Italy","Matera, Italy"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/8/82/Prague_-_panoramio_%28prokopio%29.jpg/600px-Prague_-_panoramio_%28prokopio%29.jpg",ans:"Prague, Czech Republic",opts:["Prague, Czech Republic","Vienna, Austria","Budapest, Hungary","Krakow, Poland"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Lake_bled_Slovenia.jpg/600px-Lake_bled_Slovenia.jpg",ans:"Lake Bled, Slovenia",opts:["Lake Bled, Slovenia","Lake Lugano, Switzerland","Lake Annecy, France","Lake Como, Italy"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/6/61/Cappadocia_Balloon_Inflating_%284%29.jpg/600px-Cappadocia_Balloon_Inflating_%284%29.jpg",ans:"Cappadocia, Turkey",opts:["Cappadocia, Turkey","Pamukkale, Turkey","Wadi Rum, Jordan","Meteora, Greece"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Monastery_of_the_Holy_Trinity%2C_Meteora.jpg/600px-Monastery_of_the_Holy_Trinity%2C_Meteora.jpg",ans:"Meteora, Greece",opts:["Meteora, Greece","Cappadocia, Turkey","Delphi, Greece","Mount Athos, Greece"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/0/08/SMM_Venezia.jpg/600px-SMM_Venezia.jpg",ans:"Venice, Italy",opts:["Venice, Italy","Amsterdam, Netherlands","Bruges, Belgium","Stockholm, Sweden"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Reine%2C_Lofoten%2C_Norway.jpg/600px-Reine%2C_Lofoten%2C_Norway.jpg",ans:"Lofoten Islands, Norway",opts:["Lofoten Islands, Norway","Faroe Islands","Iceland","Svalbard, Norway"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/b/be/Kotor-stadtbild.jpg/600px-Kotor-stadtbild.jpg",ans:"Kotor, Montenegro",opts:["Kotor, Montenegro","Dubrovnik, Croatia","Budva, Montenegro","Tivat, Montenegro"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/13/Sagrada_Familia_01.jpg/600px-Sagrada_Familia_01.jpg",ans:"Barcelona, Spain",opts:["Barcelona, Spain","Madrid, Spain","Valencia, Spain","Seville, Spain"]},
+  ]},
+  { name:"Asian Splendours", hint:"Asia", desc:"Temples, cities and landscapes of Asia", questions:[
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Borobudur-Temple-Compounds-edit.jpg/600px-Borobudur-Temple-Compounds-edit.jpg",ans:"Borobudur, Indonesia",opts:["Borobudur, Indonesia","Angkor Wat, Cambodia","Bagan, Myanmar","Prambanan, Indonesia"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/f/fd/Bagan_temple_myanmar.jpg/600px-Bagan_temple_myanmar.jpg",ans:"Bagan, Myanmar",opts:["Bagan, Myanmar","Angkor Wat, Cambodia","Borobudur, Indonesia","Ayutthaya, Thailand"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/5/57/Himeji_castle_guard_close.jpg/600px-Himeji_castle_guard_close.jpg",ans:"Himeji Castle, Japan",opts:["Himeji Castle, Japan","Matsumoto Castle, Japan","Osaka Castle, Japan","Gyeongbokgung, Korea"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/43/Hagia_Sofia_Exterior_2007.jpg/600px-Hagia_Sofia_Exterior_2007.jpg",ans:"Hagia Sophia, Istanbul",opts:["Hagia Sophia, Istanbul","Blue Mosque, Istanbul","Selimiye Mosque","Suleymaniye Mosque"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/7/72/Gateway_of_India_2013.jpg/600px-Gateway_of_India_2013.jpg",ans:"Mumbai, India",opts:["Mumbai, India","Chennai, India","Colombo, Sri Lanka","Karachi, Pakistan"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/c/c0/GoldenRock.jpg/600px-GoldenRock.jpg",ans:"Golden Rock, Myanmar",opts:["Golden Rock, Myanmar","Sigiriya, Sri Lanka","Preah Vihear, Cambodia","Doi Inthanon, Thailand"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Sigiriya_Sri_Lanka.jpg/600px-Sigiriya_Sri_Lanka.jpg",ans:"Sigiriya, Sri Lanka",opts:["Sigiriya, Sri Lanka","Dambulla, Sri Lanka","Polonnaruwa, Sri Lanka","Golden Rock, Myanmar"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/15/Red_Hong_Kong_Sampan.jpg/600px-Red_Hong_Kong_Sampan.jpg",ans:"Hong Kong, China",opts:["Hong Kong, China","Macau, China","Taipei, Taiwan","Shanghai, China"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/9/91/Longji_Rice_Terraces.jpg/600px-Longji_Rice_Terraces.jpg",ans:"Longji Rice Terraces, China",opts:["Longji Rice Terraces, China","Banaue Terraces, Philippines","Bali Terraces, Indonesia","Mu Cang Chai, Vietnam"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Socotra_dragon_tree.JPG/600px-Socotra_dragon_tree.JPG",ans:"Socotra Island, Yemen",opts:["Socotra Island, Yemen","Madagascar","Sri Lanka","Borneo"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Hoi_An_lanterns.jpg/600px-Hoi_An_lanterns.jpg",ans:"Hoi An, Vietnam",opts:["Hoi An, Vietnam","Luang Prabang, Laos","Chiang Mai, Thailand","Kyoto, Japan"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/8/84/Zhangye_Danxia_Landform_China_11.jpg/600px-Zhangye_Danxia_Landform_China_11.jpg",ans:"Zhangye Danxia, China",opts:["Zhangye Danxia, China","Rainbow Mountain, Peru","Painted Hills, USA","Cappadocia, Turkey"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Vinicunca_Peru.jpg/600px-Vinicunca_Peru.jpg",ans:"Rainbow Mountain, Peru",opts:["Rainbow Mountain, Peru","Zhangye Danxia, China","Painted Hills, USA","Atacama Desert, Chile"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/8/89/Wadi_Rum_Protected_Area.jpg/600px-Wadi_Rum_Protected_Area.jpg",ans:"Wadi Rum, Jordan",opts:["Wadi Rum, Jordan","Sahara, Morocco","Namib Desert","Monument Valley, USA"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Angkor_wat_temple.jpg/600px-Angkor_wat_temple.jpg",ans:"Angkor Wat, Cambodia",opts:["Angkor Wat, Cambodia","Borobudur, Indonesia","Bagan, Myanmar","Prambanan, Indonesia"]},
+  ]},
+  { name:"Americas Explorer", hint:"Americas", desc:"North and South America", questions:[
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Machu_Picchu%2C_Peru.jpg/600px-Machu_Picchu%2C_Peru.jpg",ans:"Machu Picchu, Peru",opts:["Machu Picchu, Peru","Chichen Itza, Mexico","Tikal, Guatemala","Teotihuacan, Mexico"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Chichen_Itza.jpg/600px-Chichen_Itza.jpg",ans:"Chichen Itza, Mexico",opts:["Chichen Itza, Mexico","Tikal, Guatemala","Teotihuacan, Mexico","Copan, Honduras"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Salar_de_Uyuni%2C_Bolivia.jpg/600px-Salar_de_Uyuni%2C_Bolivia.jpg",ans:"Salar de Uyuni, Bolivia",opts:["Salar de Uyuni, Bolivia","Atacama Desert, Chile","White Sands, USA","Bonneville Salt Flats"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/1c/GoldenGateBridge-001.jpg/600px-GoldenGateBridge-001.jpg",ans:"Golden Gate Bridge, USA",opts:["Golden Gate Bridge, USA","Bay Bridge, USA","Sydney Harbour Bridge","Brooklyn Bridge, USA"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/44/Isla_de_Pascua.jpg/600px-Isla_de_Pascua.jpg",ans:"Easter Island, Chile",opts:["Easter Island, Chile","Galapagos Islands, Ecuador","Falkland Islands","Juan Fernandez Islands"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/3/31/Cartagena_de_Indias_30.jpg/600px-Cartagena_de_Indias_30.jpg",ans:"Cartagena, Colombia",opts:["Cartagena, Colombia","Havana, Cuba","San Juan, Puerto Rico","Panama City"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Yellowstone_River_in_the_Grand_Canyon_of_the_Yellowstone_%282007%29.jpg/600px-Yellowstone_River_in_the_Grand_Canyon_of_the_Yellowstone_%282007%29.jpg",ans:"Yellowstone, USA",opts:["Yellowstone, USA","Yosemite, USA","Grand Canyon, USA","Glacier NP, USA"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Iguacu_argentina.jpg/600px-Iguacu_argentina.jpg",ans:"Iguazu Falls, Argentina",opts:["Iguazu Falls, Argentina","Victoria Falls, Africa","Niagara Falls","Angel Falls, Venezuela"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/10/Empire_State_Building_%28aerial_view%29.jpg/600px-Empire_State_Building_%28aerial_view%29.jpg",ans:"New York City, USA",opts:["New York City, USA","Chicago, USA","Toronto, Canada","Los Angeles, USA"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Niagara_Falls%2C_viewed_from_Prospect_Point_in_2010.jpg/600px-Niagara_Falls%2C_viewed_from_Prospect_Point_in_2010.jpg",ans:"Niagara Falls, Canada",opts:["Niagara Falls, Canada","Victoria Falls, Africa","Angel Falls, Venezuela","Iguazu Falls"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/15/Peyto_Lake-Banff_NP-Canada.jpg/600px-Peyto_Lake-Banff_NP-Canada.jpg",ans:"Canadian Rockies",opts:["Canadian Rockies","Rocky Mountains, USA","Swiss Alps","Pyrenees, France"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/7/71/Galapagos_-_Kicker_Rock.jpg/600px-Galapagos_-_Kicker_Rock.jpg",ans:"Galapagos Islands, Ecuador",opts:["Galapagos Islands, Ecuador","Canary Islands, Spain","Azores, Portugal","Cape Verde"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Christ_the_Redeemer_-_Cristo_Redentor.jpg/600px-Christ_the_Redeemer_-_Cristo_Redentor.jpg",ans:"Rio de Janeiro, Brazil",opts:["Rio de Janeiro, Brazil","Sao Paulo, Brazil","Buenos Aires, Argentina","Lima, Peru"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Quebrada_de_Humahuaca.jpg/600px-Quebrada_de_Humahuaca.jpg",ans:"Quebrada de Humahuaca, Argentina",opts:["Quebrada de Humahuaca, Argentina","Valle Sagrado, Peru","Colca Canyon, Peru","Rainbow Mountain, Peru"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/3/35/Manaus-teatro-amazonas.jpg/600px-Manaus-teatro-amazonas.jpg",ans:"Manaus, Brazil",opts:["Manaus, Brazil","Bogota, Colombia","Caracas, Venezuela","Asuncion, Paraguay"]},
+  ]},
+  { name:"African Adventure", hint:"Africa", desc:"The wonders of the African continent", questions:[
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/a/af/All_Gizah_Pyramids.jpg/600px-All_Gizah_Pyramids.jpg",ans:"Pyramids of Giza, Egypt",opts:["Pyramids of Giza, Egypt","Nubian Pyramids, Sudan","Step Pyramid, Egypt","Pyramid of the Sun, Mexico"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Victoria_Falls_-_view_from_the_Zambian_side.jpg/600px-Victoria_Falls_-_view_from_the_Zambian_side.jpg",ans:"Victoria Falls",opts:["Victoria Falls","Iguazu Falls","Niagara Falls","Angel Falls, Venezuela"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Table_Mountain_Aerial_Cableway_lower_station.jpg/600px-Table_Mountain_Aerial_Cableway_lower_station.jpg",ans:"Table Mountain, South Africa",opts:["Table Mountain, South Africa","Mount Kenya, Kenya","Kilimanjaro, Tanzania","Atlas Mountains, Morocco"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/9/91/Kilimanjaro.jpg/600px-Kilimanjaro.jpg",ans:"Kilimanjaro, Tanzania",opts:["Kilimanjaro, Tanzania","Mount Kenya, Kenya","Mount Cameroon","Rwenzori, Uganda"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Masaimara.jpg/600px-Masaimara.jpg",ans:"Maasai Mara, Kenya",opts:["Maasai Mara, Kenya","Serengeti, Tanzania","Chobe, Botswana","Kruger Park, South Africa"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Marrakech_Djemaa_El_Fna.jpg/600px-Marrakech_Djemaa_El_Fna.jpg",ans:"Marrakech, Morocco",opts:["Marrakech, Morocco","Fes, Morocco","Tunis, Tunisia","Algiers, Algeria"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/e/ee/Saharan_desert.jpg/600px-Saharan_desert.jpg",ans:"Sahara Desert",opts:["Sahara Desert","Namib Desert, Namibia","Kalahari, Botswana","Arabian Desert, UAE"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Luxor%2C_Egypt.jpg/600px-Luxor%2C_Egypt.jpg",ans:"Luxor, Egypt",opts:["Luxor, Egypt","Aswan, Egypt","Abu Simbel, Egypt","Karnak Temple, Egypt"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Cape_Town_at_Night_%282%29.jpg/600px-Cape_Town_at_Night_%282%29.jpg",ans:"Cape Town, South Africa",opts:["Cape Town, South Africa","Durban, South Africa","Windhoek, Namibia","Maputo, Mozambique"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/7/76/Sossusvlei_panorama.jpg/600px-Sossusvlei_panorama.jpg",ans:"Sossusvlei, Namibia",opts:["Sossusvlei, Namibia","Sahara, Algeria","Kalahari, Botswana","Danakil Desert, Ethiopia"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/3/38/Djenn%C3%A9_February_1.jpg/600px-Djenn%C3%A9_February_1.jpg",ans:"Great Mosque of Djenne, Mali",opts:["Great Mosque of Djenne, Mali","Timbuktu, Mali","Kano Mosque, Nigeria","Larabanga Mosque, Ghana"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Zanzibar_beach.jpg/600px-Zanzibar_beach.jpg",ans:"Zanzibar, Tanzania",opts:["Zanzibar, Tanzania","Seychelles","Mauritius","Maldives"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Valley_of_the_Kings_Egypt.jpg/600px-Valley_of_the_Kings_Egypt.jpg",ans:"Valley of the Kings, Egypt",opts:["Valley of the Kings, Egypt","Valley of Queens, Egypt","Wadi el-Sebua, Egypt","Abu Simbel, Egypt"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/41/1_lake_tana_ethiopia_2010.jpg/600px-1_lake_tana_ethiopia_2010.jpg",ans:"Lake Tana, Ethiopia",opts:["Lake Tana, Ethiopia","Lake Victoria","Lake Malawi","Lake Tanganyika"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Petra_Jordan_BW_21.jpg/600px-Petra_Jordan_BW_21.jpg",ans:"Petra, Jordan",opts:["Petra, Jordan","Palmyra, Syria","Jerash, Jordan","Leptis Magna, Libya"]},
+  ]},
+  { name:"Hidden Gems", hint:"Hidden Gems", desc:"Lesser-known breathtaking places", questions:[
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Faroe_Islands.jpg/600px-Faroe_Islands.jpg",ans:"Faroe Islands",opts:["Faroe Islands","Iceland","Scottish Highlands","Norwegian coast"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Socotra_dragon_tree.JPG/600px-Socotra_dragon_tree.JPG",ans:"Socotra Island, Yemen",opts:["Socotra Island, Yemen","Galapagos Islands","Canary Islands, Spain","Madagascar"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Sigiriya_Sri_Lanka.jpg/600px-Sigiriya_Sri_Lanka.jpg",ans:"Sigiriya, Sri Lanka",opts:["Sigiriya, Sri Lanka","Dambulla, Sri Lanka","Polonnaruwa, Sri Lanka","Golden Rock, Myanmar"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/5/55/Tsingy_de_Bemaraha.jpg/600px-Tsingy_de_Bemaraha.jpg",ans:"Tsingy de Bemaraha, Madagascar",opts:["Tsingy de Bemaraha, Madagascar","Stone Forest, China","Pinnacles, Australia","Cappadocia, Turkey"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Reine%2C_Lofoten%2C_Norway.jpg/600px-Reine%2C_Lofoten%2C_Norway.jpg",ans:"Lofoten Islands, Norway",opts:["Lofoten Islands, Norway","Faroe Islands","Iceland","Svalbard, Norway"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Vinicunca_Peru.jpg/600px-Vinicunca_Peru.jpg",ans:"Rainbow Mountain, Peru",opts:["Rainbow Mountain, Peru","Atacama Desert, Chile","Painted Hills, USA","Zhangye Danxia, China"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/8/89/Wadi_Rum_Protected_Area.jpg/600px-Wadi_Rum_Protected_Area.jpg",ans:"Wadi Rum, Jordan",opts:["Wadi Rum, Jordan","Sahara, Morocco","Namib Desert","Monument Valley, USA"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/8/84/Zhangye_Danxia_Landform_China_11.jpg/600px-Zhangye_Danxia_Landform_China_11.jpg",ans:"Zhangye Danxia, China",opts:["Zhangye Danxia, China","Rainbow Mountain, Peru","Painted Hills, USA","Cappadocia, Turkey"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Hallstatt_300.jpg/600px-Hallstatt_300.jpg",ans:"Hallstatt, Austria",opts:["Hallstatt, Austria","Grindelwald, Switzerland","Bled, Slovenia","Riva del Garda, Italy"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Hoi_An_lanterns.jpg/600px-Hoi_An_lanterns.jpg",ans:"Hoi An, Vietnam",opts:["Hoi An, Vietnam","Luang Prabang, Laos","Chiang Mai, Thailand","Kyoto, Japan"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Lake_bled_Slovenia.jpg/600px-Lake_bled_Slovenia.jpg",ans:"Lake Bled, Slovenia",opts:["Lake Bled, Slovenia","Lake Lugano, Switzerland","Lake Annecy, France","Lake Como, Italy"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/3/36/The_Wave_%28Coyote_Buttes%29.jpg/600px-The_Wave_%28Coyote_Buttes%29.jpg",ans:"The Wave, Arizona, USA",opts:["The Wave, Arizona, USA","Antelope Canyon, Arizona","Bryce Canyon, Utah","Vermilion Cliffs, USA"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Mount_Roraima_from_above.jpg/600px-Mount_Roraima_from_above.jpg",ans:"Mount Roraima, Venezuela",opts:["Mount Roraima, Venezuela","Table Mountain, South Africa","Angel Falls, Venezuela","Pico da Neblina, Brazil"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/b/be/Kotor-stadtbild.jpg/600px-Kotor-stadtbild.jpg",ans:"Kotor, Montenegro",opts:["Kotor, Montenegro","Dubrovnik, Croatia","Budva, Montenegro","Tivat, Montenegro"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/9/91/Longji_Rice_Terraces.jpg/600px-Longji_Rice_Terraces.jpg",ans:"Longji Rice Terraces, China",opts:["Longji Rice Terraces, China","Banaue Terraces, Philippines","Bali Terraces, Indonesia","Mu Cang Chai, Vietnam"]},
+  ]},
+  { name:"Island Paradises", hint:"Islands", desc:"Tropical and remote islands", questions:[
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/3/30/Maldives_beach_sky.jpg/600px-Maldives_beach_sky.jpg",ans:"Maldives",opts:["Maldives","Seychelles","Bora Bora, French Polynesia","Fiji"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Santorini-2009-oia.jpg/600px-Santorini-2009-oia.jpg",ans:"Santorini, Greece",opts:["Santorini, Greece","Mykonos, Greece","Malta","Capri, Italy"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/44/Isla_de_Pascua.jpg/600px-Isla_de_Pascua.jpg",ans:"Easter Island, Chile",opts:["Easter Island, Chile","Galapagos Islands, Ecuador","Tonga","Samoa"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/7/71/Galapagos_-_Kicker_Rock.jpg/600px-Galapagos_-_Kicker_Rock.jpg",ans:"Galapagos Islands, Ecuador",opts:["Galapagos Islands, Ecuador","Canary Islands, Spain","Azores, Portugal","Cape Verde"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Iceland_Geysir.jpg/600px-Iceland_Geysir.jpg",ans:"Iceland",opts:["Iceland","Faroe Islands","Greenland","Norway"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Zanzibar_beach.jpg/600px-Zanzibar_beach.jpg",ans:"Zanzibar, Tanzania",opts:["Zanzibar, Tanzania","Mauritius","Comoros","Reunion, France"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Phi_Phi_Island.jpg/600px-Phi_Phi_Island.jpg",ans:"Koh Phi Phi, Thailand",opts:["Koh Phi Phi, Thailand","Langkawi, Malaysia","Boracay, Philippines","Lombok, Indonesia"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Palawan_Puerto_Princesa_Subterranean_River.jpg/600px-Palawan_Puerto_Princesa_Subterranean_River.jpg",ans:"Palawan, Philippines",opts:["Palawan, Philippines","Borneo, Malaysia","Lombok, Indonesia","Ko Chang, Thailand"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Malta_Valletta_harbour.jpg/600px-Malta_Valletta_harbour.jpg",ans:"Malta",opts:["Malta","Sicily, Italy","Sardinia, Italy","Cyprus"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Aurora_over_Abisko_National_Park.jpg/600px-Aurora_over_Abisko_National_Park.jpg",ans:"Abisko, Sweden",opts:["Abisko, Sweden","Reykjavik, Iceland","Tromso, Norway","Rovaniemi, Finland"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Faroe_Islands.jpg/600px-Faroe_Islands.jpg",ans:"Faroe Islands",opts:["Faroe Islands","Iceland","Shetland Islands, UK","Jan Mayen, Norway"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/a/af/Halong_Bay.jpg/600px-Halong_Bay.jpg",ans:"Ha Long Bay, Vietnam",opts:["Ha Long Bay, Vietnam","Palawan, Philippines","Phang Nga Bay, Thailand","Coron, Philippines"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Socotra_dragon_tree.JPG/600px-Socotra_dragon_tree.JPG",ans:"Socotra Island, Yemen",opts:["Socotra Island, Yemen","Madagascar","Sri Lanka","Borneo"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/4/43/Bora_Bora_-_French_Polynesia.jpg/600px-Bora_Bora_-_French_Polynesia.jpg",ans:"Bora Bora, French Polynesia",opts:["Bora Bora, French Polynesia","Maldives","Seychelles","Cook Islands"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/3/30/Maldives_beach_sky.jpg/600px-Maldives_beach_sky.jpg",ans:"Maldives Islands",opts:["Maldives Islands","Fiji Islands","Seychelles Islands","Cook Islands"]},
+  ]},
+  { name:"Expert Trails", hint:"Expert Level", desc:"Truly challenging locations", questions:[
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Petra_Jordan_BW_21.jpg/600px-Petra_Jordan_BW_21.jpg",ans:"Petra, Jordan",opts:["Petra, Jordan","Palmyra, Syria","Jerash, Jordan","Leptis Magna, Libya"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Potala_Palace_-_panoramio.jpg/600px-Potala_Palace_-_panoramio.jpg",ans:"Potala Palace, Lhasa, Tibet",opts:["Potala Palace, Lhasa, Tibet","Jokhang Temple, Tibet","Gyantse Dzong, Tibet","Tashilhunpo Monastery"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Ellora_cave_16_003.jpg/600px-Ellora_cave_16_003.jpg",ans:"Ellora Caves, India",opts:["Ellora Caves, India","Ajanta Caves, India","Elephanta Caves, India","Badami Caves, India"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Vardzia_cave_monastery.jpg/600px-Vardzia_cave_monastery.jpg",ans:"Vardzia, Georgia",opts:["Vardzia, Georgia","Petra, Jordan","Cappadocia, Turkey","Meteora, Greece"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Skara_Brae_16_wikimedia.jpg/600px-Skara_Brae_16_wikimedia.jpg",ans:"Skara Brae, Scotland",opts:["Skara Brae, Scotland","Stonehenge, England","Newgrange, Ireland","Avebury, England"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/3/38/Djenn%C3%A9_February_1.jpg/600px-Djenn%C3%A9_February_1.jpg",ans:"Great Mosque of Djenne, Mali",opts:["Great Mosque of Djenne, Mali","Timbuktu, Mali","Kano Mosque, Nigeria","Larabanga Mosque, Ghana"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/9/91/Longji_Rice_Terraces.jpg/600px-Longji_Rice_Terraces.jpg",ans:"Longji Rice Terraces, China",opts:["Longji Rice Terraces, China","Banaue Terraces, Philippines","Bali Terraces, Indonesia","Mu Cang Chai, Vietnam"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Altamira-1.jpg/600px-Altamira-1.jpg",ans:"Altamira Caves, Spain",opts:["Altamira Caves, Spain","Lascaux Caves, France","Chauvet Cave, France","Font-de-Gaume, France"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/b/be/Tatev_monastery.jpg/600px-Tatev_monastery.jpg",ans:"Tatev Monastery, Armenia",opts:["Tatev Monastery, Armenia","Geghard Monastery, Armenia","Haghpat Monastery, Armenia","Khor Virap, Armenia"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/3/36/The_Wave_%28Coyote_Buttes%29.jpg/600px-The_Wave_%28Coyote_Buttes%29.jpg",ans:"The Wave, Arizona, USA",opts:["The Wave, Arizona, USA","Antelope Canyon, Arizona","Bryce Canyon, Utah","Vermilion Cliffs, USA"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Mount_Roraima_from_above.jpg/600px-Mount_Roraima_from_above.jpg",ans:"Mount Roraima, Venezuela",opts:["Mount Roraima, Venezuela","Table Mountain, South Africa","Angel Falls, Venezuela","Pico da Neblina, Brazil"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/5/55/Tsingy_de_Bemaraha.jpg/600px-Tsingy_de_Bemaraha.jpg",ans:"Tsingy de Bemaraha, Madagascar",opts:["Tsingy de Bemaraha, Madagascar","Stone Forest, China","Pinnacles, Australia","Meteora, Greece"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/8/84/Zhangye_Danxia_Landform_China_11.jpg/600px-Zhangye_Danxia_Landform_China_11.jpg",ans:"Zhangye Danxia, China",opts:["Zhangye Danxia, China","Rainbow Mountain, Peru","Painted Hills, USA","Zhangjiajie, China"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Vinicunca_Peru.jpg/600px-Vinicunca_Peru.jpg",ans:"Rainbow Mountain, Peru",opts:["Rainbow Mountain, Peru","Zhangye Danxia, China","Painted Hills, USA","Atacama Desert, Chile"]},
+    {img:"https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/thumb/8/89/Wadi_Rum_Protected_Area.jpg/600px-Wadi_Rum_Protected_Area.jpg",ans:"Wadi Rum, Jordan",opts:["Wadi Rum, Jordan","Sahara, Morocco","Namib Desert","Monument Valley, USA"]},
+  ]},
+];
+
+// ── GAME STATE ──
+var G = {
+  lvl: 0, qi: 0, score: 0, lives: 3, answered: false, pool: [],
+  prog: (function(){ try{ return JSON.parse(localStorage.getItem('witw5')||'{}'); }catch(e){ return {}; } })()
+};
+
+function save(){ try{ localStorage.setItem('witw5', JSON.stringify(G.prog)); }catch(e){} }
+
+function shuffle(arr){
+  var a = arr.slice();
+  for(var i = a.length-1; i > 0; i--){
+    var j = Math.floor(Math.random()*(i+1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  if(id === 'levelselect') buildLevelList();
+}
+
+function buildLevelList(){
+  var el = document.getElementById('lvl-list');
+  el.innerHTML = '';
+  for(var i = 0; i < LEVELS.length; i++){
+    (function(i){
+      var unlocked = (i === 0) || !!(G.prog[i-1] && G.prog[i-1].done);
+      var done = !!(G.prog[i] && G.prog[i].done);
+      var d = document.createElement('div');
+      d.className = 'lvl-card' + (unlocked ? '' : ' locked') + (done ? ' done' : '');
+      d.innerHTML =
+        '<div class="lvl-num">'+(i+1)+'</div>'+
+        '<div class="lvl-info">'+
+          '<div class="lvl-name">'+LEVELS[i].name+'</div>'+
+          '<div class="lvl-desc">'+LEVELS[i].desc+'</div>'+
+        '</div>'+
+        '<div style="font-size:18px">'+(unlocked ? (done ? '&#9989;' : '&#9654;&#65039;') : '&#128274;')+'</div>';
+      if(unlocked){ d.onclick = function(){ startLevel(i); }; }
+      el.appendChild(d);
+    })(i);
+  }
+}
+
+function startLevel(i){
+  G.lvl = i; G.qi = 0; G.score = 0; G.lives = 3; G.answered = false;
+  var pool = LEVELS[i].questions.slice();
+  pool = shuffle(pool).slice(0, 10);
+  G.pool = pool;
+  showScreen('game');
+  renderQ();
+}
+
+function renderQ(){
+  var q = G.pool[G.qi];
+  var lvl = LEVELS[G.lvl];
+  document.getElementById('g-badge').textContent = 'Level '+(G.lvl+1);
+  document.getElementById('g-progress').textContent = (G.qi+1)+' / 10';
+  document.getElementById('g-lives').innerHTML = hearts();
+  document.getElementById('pbar').style.width = (G.qi/10*100)+'%';
+  document.getElementById('g-hint').textContent = lvl.hint;
+  document.getElementById('g-fb').textContent = '';
+  document.getElementById('g-fb').style.color = '';
+
+  // Image loading
+  var img = document.getElementById('g-img');
+  var ph = document.getElementById('img-ph');
+  img.style.opacity = '0';
+  ph.style.display = 'flex';
+  ph.querySelector('p').textContent = 'Loading image...';
+  ph.querySelector('.spin').style.animation = 'spin 2s linear infinite';
+
+  img.onload = function(){
+    img.style.opacity = '1';
+    ph.style.display = 'none';
+  };
+  img.onerror = function(){
+    ph.querySelector('.spin').style.animation = 'none';
+    ph.querySelector('.spin').innerHTML = '&#127757;';
+    ph.querySelector('p').textContent = 'Guess from the options!';
+  };
+  img.src = q.img;
+
+  // Options
+  var opts = shuffle(q.opts);
+  var grid = document.getElementById('g-opts');
+  grid.innerHTML = '';
+  for(var j = 0; j < opts.length; j++){
+    (function(opt){
+      var btn = document.createElement('button');
+      btn.className = 'opt';
+      btn.textContent = opt;
+      btn.onclick = function(){ handleAnswer(opt); };
+      grid.appendChild(btn);
+    })(opts[j]);
+  }
+  G.answered = false;
+}
+
+function hearts(){
+  var h = '';
+  for(var i=0;i<3;i++) h += (i < G.lives) ? '&#10084;&#65039;' : '&#128420;';
+  return h;
+}
+
+function handleAnswer(chosen){
+  if(G.answered) return;
+  G.answered = true;
+  var q = G.pool[G.qi];
+  var ok = chosen === q.ans;
+
+  document.querySelectorAll('.opt').forEach(function(btn){
+    btn.disabled = true;
+    if(btn.textContent === q.ans) btn.classList.add('correct');
+    else if(btn.textContent === chosen && !ok) btn.classList.add('wrong');
+  });
+
+  var fb = document.getElementById('g-fb');
+  if(ok){
+    G.score++;
+    fb.textContent = '✓ Correct!';
+    fb.style.color = '#2ecc71';
+  } else {
+    G.lives--;
+    fb.textContent = '✗ Answer: ' + q.ans;
+    fb.style.color = '#e74c3c';
+    document.getElementById('g-lives').innerHTML = hearts();
+  }
+
+  setTimeout(function(){
+    if(G.lives <= 0){ showResult(false); return; }
+    G.qi++;
+    if(G.qi >= 10) showResult(G.score === 10);
+    else renderQ();
+  }, 1600);
+}
+
+function showResult(passed){
+  document.getElementById('r-icon').innerHTML = passed ? '&#127942;' : '&#127760;';
+  document.getElementById('r-title').textContent = passed ? 'Level Complete!' : 'Not Quite!';
+  document.getElementById('r-title').className = 'res-title ' + (passed ? 'win' : 'lose');
+  document.getElementById('r-score').textContent = G.score + '/10';
+  document.getElementById('r-sub').textContent = passed ? 'Perfect score — next level unlocked!' : 'You need 10/10 to pass';
+  document.getElementById('r-msg').textContent = passed
+    ? 'You mastered "' + LEVELS[G.lvl].name + '". Ready for the next challenge?'
+    : 'You got ' + G.score + ' right. Try again for a perfect score!';
+  var pb = document.getElementById('r-primary');
+  if(passed && G.lvl < 9){ pb.textContent = 'Next Level →'; }
+  else { pb.textContent = 'Try Again'; }
+  if(passed){ G.prog[G.lvl] = {done:true}; save(); }
+  showScreen('result');
+}
+
+function primaryAction(){
+  if(G.prog[G.lvl] && G.prog[G.lvl].done && G.lvl < 9) startLevel(G.lvl+1);
+  else startLevel(G.lvl);
+}
+</script>
+</body>
+</html>
